@@ -1,9 +1,17 @@
 import medicion_service
-import medicion_fake
 
-# Insertar una medición de prueba
+# Insertamos una medición de prueba
+print("Insertando medición de prueba...")
 medicion_service.insertar_medicion(30.5)
-print("Última medición real:", medicion_service.get_ultima_medicion())
 
-# Medición fake
-print("Medición fake:", medicion_fake.get_ultima_medicion())
+# Obtenemos la última medición registrada
+ultima = medicion_service.get_ultima_medicion()
+
+if ultima is not None:
+    print("Última medición registrada en BD:", ultima)
+else:
+    print("No hay mediciones registradas.")
+
+# Simulación de medición fake directamente en el test (sin archivo aparte)
+medicion_fake = (999, 22.53, '2025-10-02 12:29:40')
+print("Medición fake (simulada en test):", medicion_fake)

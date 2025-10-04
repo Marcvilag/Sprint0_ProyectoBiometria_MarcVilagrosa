@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat;
 
 import java.util.Arrays;   // ✅ NEW (para Arrays.asList)
 import java.util.List;
+import java.util.Map;
 
 // ------------------------------------------------------------------
 // ------------------------------------------------------------------
@@ -363,11 +364,23 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Log.d(ETIQUETA_LOG, " onCreate(): empieza ");
-
         inicializarBlueTooth();
 
-        Log.d(ETIQUETA_LOG, " onCreate(): termina ");
-    } // onCreate()
+        // 🔹 PRUEBA de la lógica fake
+        LogicaFake logicaFake = new LogicaFake();
+        Map<String, Object> medicion = logicaFake.solicitarUltimaMedicion();
+        Log.d(ETIQUETA_LOG, "Medición fake: " + medicion);
+
+
+        // 🔹 Test para probar la lógica fake (luego se puede borrar)
+        boolean enviada = logicaFake.solicitarEnvioMedicion(33.7);
+        Log.d(ETIQUETA_LOG, "Resultado envío fake: " + enviada);
+        // -------------------------------------------------------
+
+
+        Log.d(ETIQUETA_LOG, "onCreate(): termina");
+    }
+
 
     // --------------------------------------------------------------
     // --------------------------------------------------------------
