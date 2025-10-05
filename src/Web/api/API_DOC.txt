@@ -1,0 +1,40 @@
+API de Mediciones – v1
+
+1. Descripción
+
+API REST independiente para crear y consultar mediciones almacenadas en SQLite.
+Incluye documentación interactiva en /docs y una web mínima en /ux.
+
+2. Base URL
+
+Local (mismo PC): http://127.0.0.1:8000
+Desde Android en tu Wi-Fi: http://<IP_DE_TU_PC>:8000 (ej.: http://192.168.1.34:8000)
+
+3. Persistencia
+
+La base de datos se guarda en: src/Web/bbdd/mediciones.db
+El servidor añade la marca de tiempo (fecha) automáticamente.
+
+4. Formato
+
+JSON (Content-Type: application/json)
+Sin autenticación (entorno de prácticas)
+
+5. Esquemas
+
+MedicionIn (request)
+valor (float) — Ej.: 22.53
+
+6. MedicionOut (response)
+
+id (int) — Identificador autoincremental
+valor (float) — Valor de la medición
+fecha (string ISO-8601) — Ej.: "2025-10-05T17:45:01"
+
+7. Comprobaciones rápidas:
+
+Docs Swagger: http://127.0.0.1:8000/docs
+Web mínima: http://127.0.0.1:8000/ux/
+Health: http://127.0.0.1:8000/api/v1/health
+
+FALTA PONER LA INSTALACION DE COMO INICIARLO
