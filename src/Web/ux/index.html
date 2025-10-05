@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mediciones – Demo</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#0f172a;color:#e2e8f0}
+    header{padding:16px 24px;background:#111827;border-bottom:1px solid #1f2937}
+    main{max-width:760px;margin:24px auto;padding:0 16px}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+    h1{font-size:20px;margin:0}
+    h2{font-size:18px;margin:0 0 12px 0}
+    label{display:block;margin:8px 0 6px 0}
+    input[type="number"]{width:100%;padding:10px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e2e8f0}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{padding:10px 14px;border-radius:10px;border:1px solid #334155;background:#0ea5e9;color:#02131e;cursor:pointer;font-weight:600}
+    button.secondary{background:#1f2937;color:#e5e7eb}
+    .muted{color:#94a3b8;font-size:14px}
+    .ok{color:#22c55e}
+    .err{color:#ef4444}
+    pre{background:#0b1220;border:1px solid #1f2937;border-radius:10px;padding:12px;overflow:auto}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    @media (max-width:700px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>API Mediciones – Panel mínimo</h1>
+    <div class="muted">Conecta con <code>/api/v1/mediciones</code> y <code>/api/v1/mediciones/ultima</code></div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <div class="card">
+        <h2>Guardar medición</h2>
+        <label for="valor">Valor (número):</label>
+        <input id="valor" type="number" step="0.01" placeholder="22.53" />
+        <div class="row">
+          <button id="btnGuardar">Guardar medición</button>
+          <button id="btnDemo" class="secondary">Demo (valor aleatorio)</button>
+        </div>
+        <div id="saveMsg" class="muted" style="margin-top:10px"></div>
+        <pre id="saveOut" style="display:none"></pre>
+      </div>
+
+      <div class="card">
+        <h2>Última medición</h2>
+        <div class="row">
+          <button id="btnUltima">Cargar última</button>
+          <button id="btnAuto" class="secondary">Auto-refresco 2s</button>
+        </div>
+        <div id="autoMsg" class="muted" style="margin-top:10px"></div>
+        <pre id="ultimaOut" style="display:none"></pre>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Estado del servidor</h2>
+      <div class="row">
+        <button id="btnHealth">Health</button>
+      </div>
+      <div id="healthMsg" class="muted" style="margin-top:10px"></div>
+    </div>
+  </main>
+
+  <script>
+    const base = window.location.origin;
+    const $ = (id)=>document.getElementById(id);
+    const saveMsg = $("saveMsg"), saveOut = $("saveOut");
+    const ultimaOut = $("ultimaOut"), healthMsg = $("healthMsg");
+    const autoMsg = $("autoMsg");
+    let autoTimer = null;
+
+    async function guardarMedicion(valor){
+      saveMsg.textContent = "Guardando…";
+      saveOut.style.display = "none";
+      try{
+        const r = await fetch(`${base}/api/v1/mediciones`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({valor: Number(valor)})
+        });
+        if(!r.ok){
+          const t = await r.text();
+          throw new Error(`HTTP ${r.status} – ${t}`);
+        }
+        const data = await r.json();
+        saveMsg.innerHTML = `<span class="ok">✓ Guardado</span>`;
+        saveOut.textContent = JSON.stringify(data, null, 2);
+        saveOut.style.display = "block";
+      }catch(err){
+        saveMsg.innerHTML = `<span class="err">✗ Error: ${err.message}</span>`;
+      }
+    }
+
+    async function cargarUltima(){
+      ultimaOut.style.display = "none";
+      try{
+        const r = await fetch(`${base}/api/v1/mediciones/ultima`);
+        if(!r.ok){
+          const t = await r.text();
+          throw new Error(`HTTP ${r.status} – ${t}`);
+        }
+        const data = await r.json();
+        ultimaOut.textContent = JSON.stringify(data, null, 2);
+        ultimaOut.style.display = "block";
+      }catch(err){
+        ultimaOut.textContent = `Error: ${err.message}`;
+        ultimaOut.style.display = "block";
+      }
+    }
+
+    async function health(){
+      healthMsg.textContent = "Consultando…";
+      try{
+        const r = await fetch(`${base}/api/v1/health`);
+        const data = await r.json();
+        healthMsg.textContent = JSON.stringify(data);
+      }catch(err){
+        healthMsg.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    $("btnGuardar").addEventListener("click", ()=>{
+      const v = $("valor").value;
+      if(v === "" || isNaN(Number(v))){
+        saveMsg.innerHTML = '<span class="err">Introduce un número.</span>';
+        return;
+      }
+      guardarMedicion(v);
+    });
+
+    $("btnDemo").addEventListener("click", ()=>{
+      const demo = (Math.random()*10+20).toFixed(2);
+      $("valor").value = demo;
+      guardarMedicion(demo);
+    });
+
+    $("btnUltima").addEventListener("click", cargarUltima);
+
+    $("btnAuto").addEventListener("click", ()=>{
+      if(autoTimer){
+        clearInterval(autoTimer);
+        autoTimer = null;
+        autoMsg.textContent = "Auto-refresco desactivado.";
+      }else{
+        cargarUltima();
+        autoTimer = setInterval(cargarUltima, 2000);
+        autoMsg.textContent = "Auto-refresco cada 2 segundos.";
+      }
+    });
+
+    $("btnHealth").addEventListener("click", health);
+    health();
+  </script>
+</body>
+</html>
