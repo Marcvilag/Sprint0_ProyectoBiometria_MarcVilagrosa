@@ -1,34 +1,33 @@
 package org.example.btlealumnos2021marc;
 
-import java.util.HashMap;
-import java.util.Map;
+import android.util.Log;
 
 /**
- * Clase que simula las solicitudes al backend del proyecto.
- * No realiza comunicación real; devuelve datos de ejemplo
- * para pruebas antes de tener la API REST implementada.
+ * LogicaFake:
+ * Clase que simula la lógica del cliente Android.
+ * Se encarga de enviar las mediciones al servidor mediante ClienteREST.
  */
 public class LogicaFake {
 
-    /**
-     * Simula la obtención de la última medición registrada.
-     * @return Mapa con los datos de una medición de ejemplo.
-     */
-    public Map<String, Object> solicitarUltimaMedicion() {
-        Map<String, Object> medicion = new HashMap<>();
-        medicion.put("id", 999);
-        medicion.put("valor", 22.53);
-        medicion.put("fecha", "2025-10-02 12:29:40");
-        return medicion;
-    }
+    private static final String ETIQUETA = "LogicaFake";
+    private static final String URL_SERVIDOR = "http://10.0.2.2:8000/api/v1/mediciones";
 
     /**
-     * Simula el envío de una nueva medición al backend.
-     * @param valor Valor de la medición a enviar.
-     * @return true si la simulación es exitosa.
+     * Envía una medición JSON al servidor (modo real o simulado).
+     * @param tipo  Tipo de sensor (ej. "Temperatura")
+     * @param valor Valor medido
      */
-    public boolean solicitarEnvioMedicion(double valor) {
-        System.out.println("Simulando envío de medición (fake): " + valor);
-        return true; // siempre simula éxito
+    public void guardarMedicion(String tipo, double valor) {
+        String json = "{\"tipo\":\"" + tipo + "\",\"valor\":" + valor + "}";
+        Log.d(ETIQUETA, "Enviando medición: " + json);
+
+        ClienteREST cliente = new ClienteREST();
+        cliente.ejecutar("POST", URL_SERVIDOR, json, (codigo, cuerpo) -> {
+            if (codigo >= 200 && codigo < 300) {
+                Log.d(ETIQUETA, "✅ Envío correcto (" + codigo + "): " + cuerpo);
+            } else {
+                Log.e(ETIQUETA, "❌ Error (" + codigo + "): " + cuerpo);
+            }
+        });
     }
 }
