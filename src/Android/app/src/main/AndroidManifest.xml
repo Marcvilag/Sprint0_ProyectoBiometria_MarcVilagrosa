@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
 
     <!-- Android 12+ (API 31 en adelante) -->
     <uses-permission
@@ -11,19 +11,24 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_CONNECT"
         tools:targetApi="31" />
-
-    <!-- Si vas a emitir beacons (publicidad BLE), añade también: -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADVERTISE"
         tools:targetApi="31" />
 
-    <!-- Internet (igual que antes, si lo necesitas) -->
+    <!-- Compatibilidad Android 6–11 (necesario para escanear BLE) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+
+    <!-- Legacy (no hace daño, y ayuda en APIs antiguas) -->
+    <uses-permission android:name="android.permission.BLUETOOTH"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
+
+    <!-- Si tu app usa red local / API -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Indicar que el dispositivo debe tener BLE -->
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
-
-
+    <!-- Declarar soporte BLE -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -34,6 +39,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BTLEAlumnos2021Marc"
+        android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
         <activity
@@ -46,7 +52,5 @@
         </activity>
 
     </application>
-
-
 
 </manifest>
