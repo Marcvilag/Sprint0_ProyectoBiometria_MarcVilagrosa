@@ -2,49 +2,281 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Mediciones – Demo</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Mediciones</title>
+
+  <style>
+    /* ======= VARIABLES DE COLOR ======= */
+    :root {
+      --bg: #0e1420;
+      --card: #121a26;
+      --text: #e7ecf3;
+      --muted: #9aa3b2;
+      --border: #1f2a3a;
+      --primary: #2f95ff;
+      --primary-dark: #1d6dd6;
+      --accent: #192538;
+      --success: #2ecc71;
+    }
+
+    /* ======= RESETEO Y BASE ======= */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* ======= CONTENEDOR GENERAL ======= */
+    .container {
+      max-width: 950px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    /* ======= TITULO PRINCIPAL ======= */
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    /* ======= BOTONES ======= */
+    .btn {
+      background: var(--primary);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    .btn:hover { background: var(--primary-dark); }
+    .btn:active { transform: scale(0.97); }
+
+    /* ======= TARJETAS ======= */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ======= TABLA ======= */
+    .wrap {
+      overflow: auto;
+      max-height: 380px;
+      transition: max-height 0.3s ease;
+    }
+    .wrap.collapsed { max-height: 260px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 15px;
+    }
+    thead {
+      background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+    }
+    thead th {
+      color: #fff;
+      text-align: left;
+      padding: 10px 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    tbody tr:nth-child(even) {
+      background: var(--accent);
+    }
+    tbody td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr:hover {
+      background: #182131;
+    }
+    .muted {
+      color: var(--muted);
+      text-align: center;
+      padding: 14px;
+    }
+
+    .footer-btn {
+      display: flex;
+      justify-content: center;
+      padding: 10px;
+      background: #101722;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ======= TARJETA DE ÚLTIMA MEDICIÓN ======= */
+    .ultima {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    .ultima h2 {
+      margin-bottom: 10px;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    .ultima .valor {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--success);
+      margin-bottom: 4px;
+    }
+    .ultima small {
+      color: var(--muted);
+    }
+  </style>
 </head>
+
 <body>
-  <header>
-    <h1>API Mediciones – Panel mínimo</h1>
-    <div class="muted">Conecta con <code>/api/v1/mediciones</code> y <code>/api/v1/mediciones/ultima</code></div>
-  </header>
+  <main class="container">
+    <h1>Tabla de Mediciones</h1>
 
-  <main>
-    <div class="grid">
-      <div class="card">
-        <h2>Guardar medición</h2>
-        <label for="valor">Valor (número):</label>
-        <input id="valor" type="number" step="0.01" placeholder="22.53" />
-        <div class="row">
-          <button id="btnGuardar">Guardar medición</button>
-          <button id="btnDemo" class="secondary">Demo (valor aleatorio)</button>
-        </div>
-        <div id="saveMsg" class="muted" style="margin-top:10px"></div>
-        <pre id="saveOut" style="display:none"></pre>
+    <!-- Tarjeta de última medición -->
+    <section class="ultima" id="ultimaMedicion">
+      <h2>Última medición</h2>
+      <span class="valor">–</span>
+      <small class="fecha">No disponible</small>
+      <div style="margin-top:12px;">
+        <button id="btnUltima" class="btn">Actualizar última</button>
+      </div>
+    </section>
+
+    <!-- Tabla de todas las mediciones -->
+    <section class="card">
+      <div class="toolbar">
+        <button id="btnActualizar" class="btn">Actualizar tabla</button>
+        <span id="status" class="hint"></span>
       </div>
 
-      <div class="card">
-        <h2>Última medición</h2>
-        <div class="row">
-          <button id="btnUltima">Cargar última</button>
-          <button id="btnAuto" class="secondary">Auto-refresco 2s</button>
-        </div>
-        <div id="autoMsg" class="muted" style="margin-top:10px"></div>
-        <pre id="ultimaOut" style="display:none"></pre>
+      <div id="tablaWrap" class="wrap collapsed">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>VALOR</th>
+              <th>FECHA</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td class="muted" colspan="3">Cargando…</td></tr>
+          </tbody>
+        </table>
       </div>
-    </div>
 
-    <div class="card">
-      <h2>Estado del servidor</h2>
-      <div class="row">
-        <button id="btnHealth">Health</button>
+      <div class="footer-btn">
+        <button id="btnVerMas" class="btn">Ver más</button>
       </div>
-      <div id="healthMsg" class="muted" style="margin-top:10px"></div>
-    </div>
+    </section>
   </main>
+
+  <script>
+    const API_BASE = 'http://127.0.0.1:8000/api/v1';
+    const $ = s => document.querySelector(s);
+    const tbody = $('#tbody');
+    const statusEl = $('#status');
+    const wrap = $('#tablaWrap');
+    const ultimaValor = $('#ultimaMedicion .valor');
+    const ultimaFecha = $('#ultimaMedicion .fecha');
+    const btnVerMas = $('#btnVerMas');
+    let dataGlobal = [];
+
+    // === Formato de fecha ===
+    function fmtFecha(x){
+      try{ return new Date(x).toLocaleString('es-ES'); }
+      catch{ return x; }
+    }
+
+    // === Renderizar tabla ===
+    function renderTabla(list, limit=7){
+      const datos = list.slice(0, limit);
+      if(!datos.length){
+        tbody.innerHTML = `<tr><td class="muted" colspan="3">Sin datos.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = datos.map(r => `
+        <tr>
+          <td>${r.id}</td>
+          <td>${r.valor}</td>
+          <td>${fmtFecha(r.fecha)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // === Cargar todas las mediciones ===
+    async function cargar(){
+      tbody.innerHTML = `<tr><td class="muted" colspan="3">Cargando…</td></tr>`;
+      statusEl.textContent = API_BASE + '/mediciones';
+      try{
+        const res = await fetch(`${API_BASE}/mediciones`, { cache: 'no-store', mode: 'cors' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const list = await res.json();
+        dataGlobal = Array.isArray(list) ? list : [];
+        renderTabla(dataGlobal);
+      }catch(err){
+        tbody.innerHTML = `<tr><td class="muted" colspan="3">Error al cargar (${err.message}).</td></tr>`;
+      }
+    }
+
+    // === Cargar la última medición ===
+    async function cargarUltima(){
+      ultimaValor.textContent = "–";
+      ultimaFecha.textContent = "Cargando...";
+      try{
+        const res = await fetch(`${API_BASE}/mediciones/ultima`, { cache: 'no-store', mode: 'cors' });
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        ultimaValor.textContent = data.valor;
+        ultimaFecha.textContent = fmtFecha(data.fecha);
+      }catch(err){
+        ultimaValor.textContent = "–";
+        ultimaFecha.textContent = "Error al cargar";
+      }
+    }
+
+    // === Eventos ===
+    document.addEventListener('DOMContentLoaded', ()=>{
+      $('#btnActualizar').addEventListener('click', cargar);
+      $('#btnUltima').addEventListener('click', cargarUltima);
+      btnVerMas.addEventListener('click', ()=>{
+        if (wrap.classList.contains('collapsed')){
+          wrap.classList.remove('collapsed');
+          renderTabla(dataGlobal, dataGlobal.length);
+          btnVerMas.textContent = "Ver menos";
+        } else {
+          wrap.classList.add('collapsed');
+          renderTabla(dataGlobal);
+          btnVerMas.textContent = "Ver más";
+        }
+      });
+      cargar();
+      cargarUltima();
+    });
+  </script>
 </body>
 </html>
