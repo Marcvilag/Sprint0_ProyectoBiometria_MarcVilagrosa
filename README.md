@@ -7,6 +7,8 @@ Además, se incluye una interfaz web sencilla (HTML + JavaScript) que consulta l
 
 De esta forma, el sistema combina captura de datos (Arduino), recepción y reenvío (Android), almacenamiento y exposición (API + BD) y visualización (Web), todo dentro de una arquitectura clara y modular.  
 
+Flujo: **Arduino → Android (BLE) → API (HTTP) → BD (SQLite) → Web (fetch)**.
+
 ---
 
 ## Estructura de carpetas
@@ -21,6 +23,27 @@ De esta forma, el sistema combina captura de datos (Arduino), recepción y reenv
 ```
 
 ---
+
+## Despliegue local
+
+> **Requisitos:** Python 3.10+ y `pip`. Ejecuta los comandos **desde la raíz del repositorio**. Mantén **dos terminales** abiertas: una para la API y otra para la web.
+
+### 1 Instalar dependencias
+
+>python -m pip install -r requirements.txt
+
+### 2 Arrancar la API (FastAPI)
+> python -m uvicorn src.Web.api.main:app --reload --host 0.0.0.0 --port 8000
+
+### 3 Deplegar web estática
+
+> python -m http.server 5500 --bind 0.0.0.0 --directory src/Web/ux
+
+### 4 Enlaces Web
+
+Docs: http://127.0.0.1:8000/docs
+Web: http://127.0.0.1:5500/index.html 
+
 
 ## Estado actual
 La estructura básica del repositorio ya está creada y se ha solucionado .  

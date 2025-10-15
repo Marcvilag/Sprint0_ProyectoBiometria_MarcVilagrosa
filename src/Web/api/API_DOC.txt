@@ -33,7 +33,7 @@ fecha (string ISO-8601) — Ej.: "2025-10-05T17:45:01"
 
 7. Comprobaciones rápidas:
 
-Docs Swagger: http://127.0.0.1:8000/docs
+Docs: http://127.0.0.1:8000/docs
 Web mínima: http://127.0.0.1:8000/ux/
 Health: http://127.0.0.1:8000/api/v1/health
 

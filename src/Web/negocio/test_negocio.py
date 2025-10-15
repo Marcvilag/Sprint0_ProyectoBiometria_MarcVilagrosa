@@ -1,11 +1,11 @@
-import medicion_service
+import Web.negocio.logica as logica
 
 # Insertamos una medición de prueba
 print("Insertando medición de prueba...")
-medicion_service.insertar_medicion(30.5)
+logica.insertar_medicion(30.5)
 
 # Obtenemos la última medición registrada
-ultima = medicion_service.get_ultima_medicion()
+ultima = logica.get_ultima_medicion()
 
 if ultima is not None:
     print("Última medición registrada en BD:", ultima)

@@ -6,22 +6,8 @@
 
 @brief Inicializa la base de datos SQLite y crea la tabla `Medicion` si no existe.
 
-@details
-  DESCRIPCIÓN:
-    Script autónomo para preparar la base de datos de la aplicación.
-    Conecta a un fichero SQLite llamado `mediciones.db` y asegura la
-    existencia de la tabla `Medicion` con las columnas:
-      - id (INTEGER, PK autoincremental)
-      - valor (REAL, obligatorio)
-      - fecha (TIMESTAMP, por defecto CURRENT_TIMESTAMP)
-
   DISEÑO:
-    ∅ (sin entradas) → init_db.py → fichero `mediciones.db` con tabla `Medicion`
-    Pasos:
-      1) Conectar/crear `mediciones.db`.
-      2) Crear tabla `Medicion` con CREATE TABLE IF NOT EXISTS.
-      3) Confirmar cambios (commit) y cerrar la conexión.
-      4) Informar por consola del resultado.
+    (sin entradas) → init_db.py → fichero `mediciones.db` con tabla `Medicion`
 
   PARÁMETROS:
     Este script no recibe parámetros de entrada (se ejecuta tal cual).

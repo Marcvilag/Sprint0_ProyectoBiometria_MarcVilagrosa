@@ -10,15 +10,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 /**
- * ClienteREST:
- * Clase que realiza peticiones HTTP (GET o POST) en segundo plano,
- * notificando el resultado a través de una interfaz de callback.
+ * ClienteREST (simple):
+ * Ejecuta peticiones HTTP en segundo plano y entrega (codigo, cuerpo) en un callback.
+ * Nota: AsyncTask está deprecado, pero sirve para el Sprint 0.
  */
-public class ClienteREST extends AsyncTask<Void, Void, Boolean> {
+public class ClienteREST extends AsyncTask<Void, Void, Void> {
 
-    /**
-     * Interfaz para recibir la respuesta de la petición HTTP.
-     */
+    /** Callback para entregar el resultado HTTP al finalizar. */
     public interface RespuestaHTTP {
         void alFinalizar(int codigo, String cuerpo);
     }
@@ -27,15 +25,16 @@ public class ClienteREST extends AsyncTask<Void, Void, Boolean> {
     private String destino;
     private String cuerpo;
     private RespuestaHTTP listener;
-    private int codigoRespuesta;
+
+    private int codigoRespuesta = -1;  // -1 → error de red
     private String cuerpoRespuesta = "";
 
     /**
-     * Configura y lanza una petición HTTP asíncrona.
-     * @param metodo  Tipo de método HTTP (p. ej. "GET" o "POST")
-     * @param destino URL del servidor
-     * @param cuerpo  Cuerpo de la petición (puede ser null)
-     * @param listener Callback para procesar la respuesta
+     * Configura y lanza la petición.
+     * @param metodo   "GET", "POST", etc.
+     * @param destino  URL completa del endpoint
+     * @param cuerpo   JSON u otro payload (null si no aplica)
+     * @param listener callback para recibir (codigo, cuerpo)
      */
     public void ejecutar(String metodo, String destino, String cuerpo, RespuestaHTTP listener) {
         this.metodo = metodo;
@@ -46,42 +45,47 @@ public class ClienteREST extends AsyncTask<Void, Void, Boolean> {
     }
 
     @Override
-    protected Boolean doInBackground(Void... params) {
+    protected Void doInBackground(Void... params) {
+        HttpURLConnection conn = null;
         try {
             URL url = new URL(destino);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod(metodo);
             conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             conn.setDoInput(true);
 
-            if (!"GET".equals(metodo) && cuerpo != null) {
+            // Si no es GET y hay cuerpo, lo enviamos
+            if (!"GET".equalsIgnoreCase(metodo) && cuerpo != null) {
                 conn.setDoOutput(true);
-                DataOutputStream out = new DataOutputStream(conn.getOutputStream());
-                out.writeBytes(cuerpo);
-                out.flush();
-                out.close();
+                try (DataOutputStream out = new DataOutputStream(conn.getOutputStream())) {
+                    out.writeBytes(cuerpo);
+                    out.flush();
+                }
             }
 
+            // Código HTTP y lectura de respuesta (ok o error)
             codigoRespuesta = conn.getResponseCode();
-            BufferedReader br = new BufferedReader(new InputStreamReader(
-                    (codigoRespuesta >= 400) ? conn.getErrorStream() : conn.getInputStream()
-            ));
-
-            StringBuilder sb = new StringBuilder();
-            String linea;
-            while ((linea = br.readLine()) != null) sb.append(linea);
-            cuerpoRespuesta = sb.toString();
-            conn.disconnect();
-
-            return true;
+            boolean esError = (codigoRespuesta >= 400);
+            try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                    esError ? conn.getErrorStream() : conn.getInputStream()
+            ))) {
+                StringBuilder sb = new StringBuilder();
+                String linea;
+                while ((linea = br.readLine()) != null) sb.append(linea);
+                cuerpoRespuesta = sb.toString();
+            }
         } catch (Exception e) {
             Log.e("ClienteREST", "Error HTTP: " + e.getMessage());
-            return false;
+            codigoRespuesta = -1;
+            cuerpoRespuesta = "";
+        } finally {
+            if (conn != null) conn.disconnect();
         }
+        return null; // no necesitamos resultado; pasamos todo por el callback
     }
 
     @Override
-    protected void onPostExecute(Boolean ok) {
+    protected void onPostExecute(Void ignored) {
         if (listener != null) {
             listener.alFinalizar(codigoRespuesta, cuerpoRespuesta);
         }
