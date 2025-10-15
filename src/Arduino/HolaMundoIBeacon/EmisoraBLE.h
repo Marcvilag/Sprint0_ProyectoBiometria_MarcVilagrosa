@@ -118,6 +118,9 @@ public:
 	//
 	//
 	(*this).detenerAnuncio();
+	Bluefruit.Advertising.stop();             // redundante pero inocuo; asegura stop
+  Bluefruit.Advertising.clearData();        // <-- clave: limpia payload de advertising
+  Bluefruit.ScanResponse.clearData();       // <-- clave: limpia scan response
 	
 	//
 	// creo el beacon 
