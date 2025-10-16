@@ -44,8 +44,16 @@ Flujo: **Arduino → Android (BLE) → API (HTTP) → BD (SQLite) → Web (fetch
 Docs: http://127.0.0.1:8000/docs
 Web: http://127.0.0.1:5500/index.html 
 
+## Ejecutar tests (pytest)
 
-## Estado actual
-La estructura básica del repositorio ya está creada y se ha solucionado .  
-Las instrucciones para **desplegar el proyecto** y la forma de **ejecutar los tests** aún no están disponibles, pero se añadirán en próximas fases.  
+Ejecuta siempre los tests desde la raíz del proyecto.
+
+### Todos los tests
+
+> pytest -q
+
+### Un archivo concreto
+
+> pytest -q src/web/test/api_test.py
+> pytest -q src/web/test/logica_test.py
 

@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 # Ajuste de ruta: añadimos la raíz del repo al PYTHONPATH para
 # poder importar `src.Web.api.main` desde `src/test/`.
 # --------------------------------------------------------------
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.Web.api.main import app
 

@@ -224,8 +224,17 @@ public:
 	// Falta poner 4 bytes fijos (company ID, beacon type, longitud) y 21 de carga
 	//
 	uint8_t restoPrefijoYCarga[4+21] = {
-	  0x4c, 0x00, // companyID 2
-	  0x02, // ibeacon type 1byte
+	  
+		//========= VIEJO =========
+		//0x4c, 0x00, // companyID 2
+	  //0x02, // ibeacon type 1byte
+		//=========================
+
+		//========= NUEVO =========
+		0x59, 0x00, // companyID 2
+	  0xFF, // ibeacon type 1byte
+		//=========================
+
 	  21, // ibeacon length 1byte (dec=21)  longitud del resto // 0x15 // ibeacon length 1byte (dec=21)  longitud del resto
 	  '-', '-', '-', '-', 
 	  '-', '-', '-', '-', 
