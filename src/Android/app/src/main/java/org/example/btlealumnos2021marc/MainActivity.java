@@ -25,10 +25,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Flujo AUTO-GUARDAR (solo MINOR):
+ * Flujo AUTO-GUARDAR (solo MINOR, con signo):
  * 1) Botón "Buscar nuestro dispositivo": filtra por nombre EXACTO "Grupo4".
- * 2) Al primer iBeacon Apple (4C 00 02 15): extrae MINOR (big-endian), guarda y detiene.
- * 3) Se ignora completamente el MAJOR.
+ * 2) Al primer iBeacon Apple (4C 00 02 15): extrae MINOR (big-endian),
+ *    lo interpreta como int16 con signo y lo guarda. Después detiene el escaneo.
+ * 3) No se usa MAJOR para nada.
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -42,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private ScanCallback callback;
     private LogicaFake logicaFake;
 
-    // Para evitar duplicados en una misma sesión de escaneo
+    // Evita duplicados en una misma sesión
     private volatile boolean enviado = false;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +77,7 @@ public class MainActivity extends AppCompatActivity {
         if (escaner == null) log("No se pudo obtener el escáner LE (aún)");
     }
 
-    // ---------- Escaneo “nuestro”: filtra por nombre y auto-guarda SOLO MINOR ----------
+    // ---------- Escaneo “nuestro”: filtra por nombre y guarda SOLO MINOR (con signo) ----------
     private void iniciarEscaneoNuestro() {
         log("Escaneo nuestro: buscando \"" + NOMBRE_BEACON + "\"");
         if (!precondicionesOk()) return;
@@ -96,18 +97,22 @@ public class MainActivity extends AppCompatActivity {
                 byte[] adv = r.getScanRecord().getBytes();
                 if (adv == null) return;
 
-                int valor = extractMinorFromIBeacon(adv); // <-- parseo robusto (Manufacturer Data)
-                if (valor >= 0) {
-                    log("iBeacon OK → minor(valor) = " + valor);
+                // 1) Extrae MINOR (big-endian 0..65535)
+                int rawMinor = extractMinorFromIBeacon(adv);
+                if (rawMinor >= 0) {
+                    // 2) Interpreta como int16 con signo (CO2 positivo no cambia; Tª −12 -> −12)
+                    int valor = (int) (short) rawMinor;
 
-                    // Guardar SOLO el valor (minor). La BBDD autoincrementa el id.
+                    log("iBeacon OK → minor(raw)=" + rawMinor + "  valor(int16)=" + valor);
+
+                    // 3) Guardar SOLO el valor (minor). La BBDD autoincrementa el id.
                     logicaFake.guardarMedicion(valor);
 
                     enviado = true;
                     toast("Medición guardada: " + valor);
                     detener();
                 } else {
-                    // No era iBeacon Apple; para depurar, muestra el payload una vez
+                    // No era iBeacon Apple; útil para depurar
                     log("No iBeacon o formato inesperado. ADV(" + adv.length + ")=" + bytesToHex(adv));
                 }
             }
@@ -130,7 +135,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Escaneo general (depuración) ----------
+    // ---------- Escaneo general (depuración opcional) ----------
     private void iniciarEscaneoGeneral() {
         log("Escaneo general: empieza");
         if (!precondicionesOk()) return;
@@ -138,16 +143,13 @@ public class MainActivity extends AppCompatActivity {
         callback = new ScanCallback() {
             @Override public void onScanResult(int callbackType, ScanResult r) {
                 if (r == null || r.getScanRecord() == null) return;
-                String nombre = obtenerNombreSeguro(r.getDevice());
-                Log.d(TAG, "***** DISPOSITIVO ***** nombre=" + nombre + " rssi=" + r.getRssi());
                 byte[] adv = r.getScanRecord().getBytes();
                 if (adv == null) return;
 
-                int minor = extractMinorFromIBeacon(adv);
-                if (minor >= 0) {
-                    Log.d(TAG, "iBeacon → minor(valor)=" + minor);
-                } else {
-                    Log.d(TAG, "No iBeacon. ADV(" + adv.length + ")=" + bytesToHex(adv));
+                int rawMinor = extractMinorFromIBeacon(adv);
+                if (rawMinor >= 0) {
+                    int valor = (int) (short) rawMinor;
+                    Log.d(TAG, "iBeacon → minor(raw)=" + rawMinor + " valor(int16)=" + valor);
                 }
             }
         };
@@ -177,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
         toast("Escaneo detenido");
     }
 
-    // ---------- Parseo robusto: extrae MINOR (big-endian) desde Manufacturer Data (0xFF) ----------
+    // ---------- Parseo robusto: MINOR (big-endian) desde Manufacturer Data (0xFF) ----------
     // iBeacon Apple = 4C 00 02 15 + UUID(16) + Major(2) + Minor(2) + TxPower(1)
     private static int extractMinorFromIBeacon(byte[] adv) {
         if (adv == null || adv.length < 30) return -1;
@@ -185,17 +187,16 @@ public class MainActivity extends AppCompatActivity {
         int i = 0;
         while (i < adv.length) {
             int len = adv[i] & 0xFF;
-            if (len == 0) break;                  // fin de estructuras
+            if (len == 0) break;          // fin de estructuras
             int typeIdx = i + 1;
             int dataIdx = i + 2;
             if (typeIdx >= adv.length) break;
             int type = adv[typeIdx] & 0xFF;
 
             if (type == 0xFF) { // Manufacturer Specific Data
-                int structEnd = i + 1 + len; // índice exclusivo (después de esta estructura)
-                int base = dataIdx;          // inicio de los datos (company ID va aquí)
+                int structEnd = i + 1 + len; // exclusivo
+                int base = dataIdx;          // datos (empieza company ID)
 
-                // Comprobar cabecera iBeacon y espacio suficiente
                 if (base + 4 <= structEnd) {
                     boolean isAppleIBeacon =
                             (adv[base]     == (byte)0x4C) &&
@@ -203,18 +204,14 @@ public class MainActivity extends AppCompatActivity {
                                     (adv[base + 2] == (byte)0x02) &&
                                     (adv[base + 3] == (byte)0x15);
                     if (isAppleIBeacon) {
-                        // Offset del minor dentro del Manufacturer Data:
-                        // 4 (cabecera) + 16 (UUID) + 2 (Major) = 22
-                        int minorIdx = base + 4 + 16 + 2;
-                        // Confirmar que minor (2 bytes) cabe dentro de la estructura
+                        int minorIdx = base + 4 + 16 + 2; // 4 cabecera + 16 UUID + 2 Major
                         if (minorIdx + 1 < structEnd) {
-                            int minor = ((adv[minorIdx] & 0xFF) << 8) | (adv[minorIdx + 1] & 0xFF); // BIG-ENDIAN
-                            return minor;
+                            return ((adv[minorIdx] & 0xFF) << 8) | (adv[minorIdx + 1] & 0xFF); // BIG-ENDIAN
                         }
                     }
                 }
             }
-            i += (1 + len); // avanzar a la siguiente AD structure
+            i += (1 + len); // siguiente AD structure
         }
         return -1;
     }
@@ -249,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Este check evita errores si falta algo esencial antes de escanear.
     private boolean precondicionesOk() {
         BluetoothAdapter bta = BluetoothAdapter.getDefaultAdapter();
         if (bta == null) { toast("Sin Bluetooth"); return false; }

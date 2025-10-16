@@ -13,8 +13,8 @@ public class LogicaFake {
     // Emulador Android → host PC: 10.0.2.2
     //private static final String URL_SERVIDOR = "http://10.0.2.2:8000/api/v1/mediciones";
 
-    // Móvil físico → PC por IP LAN:
-    private static final String URL_SERVIDOR = "http://192.168.18.101:8000/api/v1/mediciones"; // <-- pon tu IP
+    // Móvil físico → PC por IP LAN, IP DEL IPHONE: 172.20.10.11
+    private static final String URL_SERVIDOR = "http://172.20.10.11:8000/api/v1/mediciones"; // <-- pon tu IP
 
     /** Acepta int (desde el minor) y delega a double */
     public void guardarMedicion(int valor) {

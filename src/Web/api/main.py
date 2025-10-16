@@ -11,8 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+
 
 # Capa de negocio (acceso BD) separada de los controladores HTTP
 from src.Web.negocio.logica import (
@@ -61,25 +62,38 @@ class MedicionOut(BaseModel):
     fecha: datetime
 
 def _parse_fecha(fecha_str: str) -> datetime:
-    """Convierte la fecha de SQLite (string) a datetime para cumplir MedicionOut."""
+    """
+    Convierte la fecha (SQLite) a datetime *aware* en UTC.
+    Así el frontend la interpreta con zona y la muestra en local correctamente.
+    """
+    s = str(fecha_str).strip().replace(" ", "T")
+    dt = None
+    # Intento 1: ISO sin zona
     try:
-        return datetime.fromisoformat(str(fecha_str).replace(" ", "T"))
+        dt = datetime.fromisoformat(s)
     except Exception:
-        from datetime import datetime as _dt
+        pass
+    # Intento 2: formatos comunes sin 'T'
+    if dt is None:
         for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"):
             try:
-                return _dt.strptime(str(fecha_str), fmt)
+                dt = datetime.strptime(str(fecha_str), fmt)
+                break
             except Exception:
-                pass
-        raise
+                continue
+    if dt is None:
+        raise ValueError(f"No se pudo parsear fecha: {fecha_str}")
+
+    # Asumimos que lo guardado por SQLite es UTC → marcamos tz
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    return dt
+
 
 # --------------- Endpoints ---------------
 # Controladores HTTP; no llevan SQL directo: delegan en la capa de negocio.
-
-@app.get("/api/v1/health")
-def health():
-    """Comprobación rápida de estado del servidor."""
-    return {"status": "ok", "time": datetime.now().isoformat()}
 
 @app.post("/api/v1/mediciones", response_model=MedicionOut, status_code=201, tags=["mediciones"])
 def crear_medicion(body: MedicionIn):
