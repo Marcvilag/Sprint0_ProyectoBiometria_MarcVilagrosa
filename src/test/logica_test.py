@@ -11,7 +11,7 @@ import pytest
 # --------------------------------------------------------------
 # PYTHONPATH: añadimos la raíz del repo para importar `src.Web.negocio.logica`
 # --------------------------------------------------------------
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from src.Web.negocio import logica as logic
 
