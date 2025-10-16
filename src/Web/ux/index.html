@@ -109,110 +109,114 @@
   </main>
 
   <script>
-    /* =========================
-       CONFIG + REFERENCIAS
-       ========================= */
-    const API_BASE = 'http://127.0.0.1:8000/api/v1';  // Base de la API FastAPI
-    const $ = s => document.querySelector(s);
-    const tbody = $('#tbody');
-    const statusEl = $('#status');
-    const wrap = $('#tablaWrap');
-    const ultimaValor = $('#ultimaMedicion .valor');
-    const ultimaFecha = $('#ultimaMedicion .fecha');
-    const btnVerMas = $('#btnVerMas');
-    let dataGlobal = []; // estado local de la tabla
+  /* =========================
+     CONFIG + REFERENCIAS
+     ========================= */
+  const API_BASE = 'http://127.0.0.1:8000/api/v1';
+  const $ = s => document.querySelector(s);
+  const tbody = $('#tbody');
+  const statusEl = $('#status');
+  const wrap = $('#tablaWrap');
+  const ultimaValor = $('#ultimaMedicion .valor');
+  const ultimaFecha = $('#ultimaMedicion .fecha');
+  const btnVerMas = $('#btnVerMas');
 
-    /* =========================
-       UTIL: formato de fecha
-       ========================= */
-    function fmtFecha(x){
-      const d = new Date(x);
-      return isNaN(d) ? (x ?? '—') : d.toLocaleString('es-ES');
+  let dataGlobal = []; // estado local de la tabla
+
+  /* =========================
+     UTIL: formato de fecha (sin tocar tu API)
+     ========================= */
+  function fmtFecha(x){
+    const d = new Date(x);
+    return isNaN(d) ? (x ?? '—') : d.toLocaleString('es-ES');
+  }
+
+  /* =========================
+     RENDER: tabla
+     ========================= */
+  function renderTabla(list, limit=7){
+    const isCollapsed = wrap.classList.contains('collapsed');
+    const datos = isCollapsed ? list.slice(0, limit) : list; // si expandido, toda la lista
+    if(!datos.length){
+      tbody.innerHTML = `<tr><td class="muted" colspan="3">Sin datos.</td></tr>`;
+      return;
     }
+    tbody.innerHTML = datos.map(r => `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.valor}</td>
+        <td>${fmtFecha(r.fecha)}</td>
+      </tr>
+    `).join('');
+  }
 
-    /* =========================
-       RENDER: tabla
-       ========================= */
-    function renderTabla(list, limit=7){
-      const datos = list.slice(0, limit);
-      if(!datos.length){
-        tbody.innerHTML = `<tr><td class="muted" colspan="3">Sin datos.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = datos.map(r => `
-        <tr>
-          <td>${r.id}</td>
-          <td>${r.valor}</td>
-          <td>${fmtFecha(r.fecha)}</td>
-        </tr>
-      `).join('');
+  /* =========================
+     API: Última medición
+     ========================= */
+  async function cargarUltima(){
+    ultimaValor.textContent = "–";
+    ultimaFecha.textContent = "Cargando…";
+    try{
+      const res = await fetch(`${API_BASE}/mediciones/ultima`, { cache: 'no-store', mode: 'cors' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data || data.id == null){ ultimaFecha.textContent = "No disponible"; return; }
+      ultimaValor.textContent = data.valor;
+      ultimaFecha.textContent = fmtFecha(data.fecha);
+    }catch(err){
+      ultimaFecha.textContent = "Error al cargar";
+      console.error('[cargarUltima]', err);
     }
+  }
 
-    /* =========================
-       API: Última medición
-       ========================= */
-    async function cargarUltima(){
-      ultimaValor.textContent = "–";
-      ultimaFecha.textContent = "Cargando…";
-      try{
-        const res = await fetch(`${API_BASE}/mediciones/ultima`, { cache: 'no-store', mode: 'cors' });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json(); // {id, valor, fecha}
-        if (!data || data.id == null){
-          ultimaFecha.textContent = "No disponible";
-          return;
-        }
-        ultimaValor.textContent = data.valor;
-        ultimaFecha.textContent = fmtFecha(data.fecha);
-      }catch(err){
-        ultimaFecha.textContent = "Error al cargar";
-        console.error('[cargarUltima]', err);
-      }
+  /* =========================
+     API: Lista (tabla)
+     ========================= */
+  async function cargar(limit=7){
+    statusEl.textContent = "Cargando…";
+    tbody.innerHTML = `<tr><td class="muted" colspan="3">Cargando…</td></tr>`;
+    try{
+      const isCollapsed = wrap.classList.contains('collapsed');
+      // 👉 si expandido → pedir TODAS (sin ?limit=)
+      const url = isCollapsed
+        ? `${API_BASE}/mediciones?limit=${encodeURIComponent(limit)}`
+        : `${API_BASE}/mediciones`;
+
+      const res = await fetch(url, { cache:'no-store', mode:'cors' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json(); // Array de {id, valor, fecha}
+      dataGlobal = Array.isArray(data) ? data : [];
+
+      renderTabla(dataGlobal, limit);
+      statusEl.textContent = `OK · ${dataGlobal.length} fila(s) · ${new Date().toLocaleTimeString()}`;
+    }catch(err){
+      statusEl.textContent = `Error: ${err.message}`;
+      tbody.innerHTML = `<tr><td class="muted" colspan="3">Error al cargar la tabla</td></tr>`;
+      console.error('[cargar]', err);
     }
+  }
 
-    /* =========================
-       API: Lista (tabla)
-       ========================= */
-    async function cargar(limit=7){
-      statusEl.textContent = "Cargando…";
-      tbody.innerHTML = `<tr><td class="muted" colspan="3">Cargando…</td></tr>`;
-      try{
-        const res = await fetch(`${API_BASE}/mediciones?limit=${encodeURIComponent(limit)}`, { cache:'no-store', mode:'cors' });
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json(); // Array de {id, valor, fecha}
-        dataGlobal = Array.isArray(data) ? data : [];
-        renderTabla(dataGlobal, wrap.classList.contains('collapsed') ? limit : dataGlobal.length);
-        statusEl.textContent = `OK · ${dataGlobal.length} fila(s) · ${new Date().toLocaleTimeString()}`;
-      }catch(err){
-        statusEl.textContent = `Error: ${err.message}`;
-        tbody.innerHTML = `<tr><td class="muted" colspan="3">Error al cargar la tabla</td></tr>`;
-        console.error('[cargar]', err);
-      }
-    }
+  /* =========================
+     EVENTOS
+     ========================= */
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // Actualiza respetando el estado (colapsado/expandido)
+    $('#btnActualizar').addEventListener('click', ()=> cargar(7));
+    $('#btnUltima').addEventListener('click', cargarUltima);
 
-    /* =========================
-       EVENTOS
-       ========================= */
-    document.addEventListener('DOMContentLoaded', ()=>{
-      $('#btnActualizar').addEventListener('click', ()=> cargar(7));
-      $('#btnUltima').addEventListener('click', cargarUltima);
-
-      btnVerMas.addEventListener('click', ()=>{
-        if (wrap.classList.contains('collapsed')){
-          wrap.classList.remove('collapsed');
-          renderTabla(dataGlobal, dataGlobal.length);
-          btnVerMas.textContent = "Ver menos";
-        } else {
-          wrap.classList.add('collapsed');
-          renderTabla(dataGlobal, 7);
-          btnVerMas.textContent = "Ver más";
-        }
-      });
-
-      // Arranque inicial
-      cargar(7);
-      cargarUltima();
+    btnVerMas.addEventListener('click', async ()=>{
+      const willExpand = wrap.classList.contains('collapsed'); // estado actual
+      wrap.classList.toggle('collapsed');                      // cambiar estado
+      btnVerMas.textContent = willExpand ? "Ver menos" : "Ver más";
+      await cargar(7); // recargar: si expandido traerá todas; si colapsado, solo 7
     });
-  </script>
+
+    // Arranque inicial: colapsado
+    if (!wrap.classList.contains('collapsed')) wrap.classList.add('collapsed');
+    cargar(7);
+    cargarUltima();
+  });
+</script>
+
 </body>
 </html>
