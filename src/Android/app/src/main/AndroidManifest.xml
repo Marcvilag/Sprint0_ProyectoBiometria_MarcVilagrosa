@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Red (llamadas a la API HTTP) -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Android 12+ (API 31 en adelante) -->
+    <!-- Hardware requerido -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+
+    <!-- Compatibilidad Android < 12: permisos legacy + ubicación para escanear BLE -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- Lint: si pides FINE debes declarar también COARSE (Android 12+ puede conceder solo COARSE) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Android 12+ (API 31+): permisos específicos de BT -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
@@ -11,19 +25,6 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_CONNECT"
         tools:targetApi="31" />
-
-    <!-- Si vas a emitir beacons (publicidad BLE), añade también: -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_ADVERTISE"
-        tools:targetApi="31" />
-
-    <!-- Internet (igual que antes, si lo necesitas) -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- Indicar que el dispositivo debe tener BLE -->
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
-
-
 
     <application
         android:allowBackup="true"
@@ -34,7 +35,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BTLEAlumnos2021Marc"
-        tools:targetApi="31">
+        android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
@@ -46,7 +47,5 @@
         </activity>
 
     </application>
-
-
 
 </manifest>

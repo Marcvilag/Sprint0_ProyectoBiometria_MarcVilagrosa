@@ -159,7 +159,9 @@ void loop () {
   // lo que queramos (sin seguir dicho formato)
   // 
   // Al terminar la prueba hay que hacer Publicador::laEmisora privado
-  // 
+
+  //===============================================================================================
+  // // ---- NO EMITIR ANUNCIO LIBRE MIENTRAS DEPURAS ----
   char datos[21] = {
 	'H', 'o', 'l', 'a',
 	'H', 'o', 'l', 'a',
@@ -169,13 +171,12 @@ void loop () {
 	'H'
   };
 
-  // elPublicador.laEmisora.emitirAnuncioIBeaconLibre ( &datos[0], 21 );
-  elPublicador.laEmisora.emitirAnuncioIBeaconLibre ( "MolaMolaMolaMolaMolaM", 21 );
-
-  esperar( 2000 );
-
-  elPublicador.laEmisora.detenerAnuncio();
+  elPublicador.laEmisora.emitirAnuncioIBeaconLibre ( &datos[0], 21 );
   
+  elPublicador.laEmisora.emitirAnuncioIBeaconLibre ( "MolaMolaMolaMolaMolaM", 21 );
+  esperar( 2000 );
+  elPublicador.laEmisora.detenerAnuncio();
+  //===============================================================================================
   // 
   // 
   // 
