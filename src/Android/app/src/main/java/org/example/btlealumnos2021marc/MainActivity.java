@@ -27,8 +27,8 @@ import java.util.List;
 /**
  * Flujo AUTO-GUARDAR (solo MINOR, con signo):
  * 1) Botón "Buscar nuestro dispositivo": filtra por nombre EXACTO "Grupo4".
- * 2) Al primer iBeacon Apple (4C 00 02 15): extrae MINOR (big-endian),
- *    lo interpreta como int16 con signo y lo guarda. Después detiene el escaneo.
+ * 2) Extrae MINOR:
+ *    lo interpreta y lo guarda. Después detiene el escaneo.
  * 3) No se usa MAJOR para nada.
  */
 public class MainActivity extends AppCompatActivity {
@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
                 if (r == null || r.getScanRecord() == null) return;
 
                 String nombre = obtenerNombreSeguro(r.getDevice());
-                log("Visto: " + (nombre != null ? nombre : "(sin nombre)") + " · RSSI=" + r.getRssi());
+                log("Visto: " + (nombre != null ? nombre : "(sin nombre)"));
 
                 byte[] adv = r.getScanRecord().getBytes();
                 if (adv == null) return;
