@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -25,11 +26,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Flujo AUTO-GUARDAR (solo MINOR, con signo):
- * 1) Botón "Buscar nuestro dispositivo": filtra por nombre EXACTO "Grupo4".
- * 2) Extrae MINOR:
- *    lo interpreta y lo guarda. Después detiene el escaneo.
- * 3) No se usa MAJOR para nada.
+ * Flujo:
+ * - "Conectar (detectar \"Grupo4\")": inicia escaneo continuo (no se detiene solo).
+ *   • Muestra un Toast de conectado solo una vez.
+ *   • Va cacheando el último MINOR=ppb recibido.
+ * - "Medir O₃": usa el valor cacheado (ppb → ppm) y lo pinta. No toca el escaneo.
+ * - "Detener búsqueda": para el escaneo.
  */
 public class MainActivity extends AppCompatActivity {
 
@@ -41,22 +43,27 @@ public class MainActivity extends AppCompatActivity {
 
     private BluetoothLeScanner escaner;
     private ScanCallback callback;
-    private LogicaFake logicaFake;
+    private LogicaFake logicaFake; // (no se usa en el flujo nuevo)
 
-    // Evita duplicados en una misma sesión
-    private volatile boolean enviado = false;
+    // Estado
+    private volatile boolean conectado = false;    // conectado lógico (detectado al menos una vez)
+    private volatile boolean escaneando = false;   // para saber si hay un scan activo
+    private Integer ultimoMinorPpb = null;         // última lectura (ppb) 0..65535
+    private TextView txtO3;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         logicaFake = new LogicaFake();
+        txtO3 = findViewById(R.id.textO3);
         inicializarBluetooth();
     }
 
     // ---------- Botones ----------
     public void botonBuscarDispositivosBTLEPulsado(View v) { iniciarEscaneoGeneral(); }
-    public void botonBuscarNuestroDispositivoBTLEPulsado(View v) { iniciarEscaneoNuestro(); }
     public void botonDetenerBusquedaDispositivosBTLEPulsado(View v) { detener(); }
+    public void botonBuscarNuestroDispositivoBTLEPulsado(View v) { iniciarEscaneoConectar(); } // CONECTAR por nombre (continuo)
+    public void botonMedirO3Pulsado(View v) { mostrarLecturaO3(); } // lee cache y pinta
 
     // ---------- Inicialización ----------
     private void inicializarBluetooth() {
@@ -77,46 +84,46 @@ public class MainActivity extends AppCompatActivity {
         if (escaner == null) log("No se pudo obtener el escáner LE (aún)");
     }
 
-    // ---------- Escaneo “nuestro”: filtra por nombre y guarda SOLO MINOR (con signo) ----------
-    private void iniciarEscaneoNuestro() {
-        log("Escaneo nuestro: buscando \"" + NOMBRE_BEACON + "\"");
+    // ---------- CONECTAR: detectar por nombre y mantener escaneo activo ----------
+    private void iniciarEscaneoConectar() {
+        log("Conectar: buscando \"" + NOMBRE_BEACON + "\"");
         if (!precondicionesOk()) return;
-        enviado = false;
+
+        if (escaneando) {
+            toast("Escaneo ya activo");
+            return;
+        }
 
         List<ScanFilter> filtros = new ArrayList<>();
         filtros.add(new ScanFilter.Builder().setDeviceName(NOMBRE_BEACON).build());
 
+        conectado = false;         // reset aviso
+        ultimoMinorPpb = null;     // limpia última lectura
+
         callback = new ScanCallback() {
             @Override public void onScanResult(int callbackType, ScanResult r) {
-                if (enviado) return;
                 if (r == null || r.getScanRecord() == null) return;
 
                 String nombre = obtenerNombreSeguro(r.getDevice());
-                log("Visto: " + (nombre != null ? nombre : "(sin nombre)"));
+                if (nombre == null || !NOMBRE_BEACON.equals(nombre)) return;
 
+                // 1) Aviso “conectado” solo la primera vez
+                if (!conectado) {
+                    conectado = true;
+                    toast("Conectado (detectado): " + NOMBRE_BEACON);
+                    log("Conectado lógico a " + NOMBRE_BEACON + " (escaneo sigue activo)");
+                }
+
+                // 2) Cachear última lectura O3 (ppb) desde iBeacon (minor, sin signo)
                 byte[] adv = r.getScanRecord().getBytes();
                 if (adv == null) return;
 
-                // 1) Extrae MINOR (big-endian 0..65535)
-                int rawMinor = extractMinorFromIBeacon(adv);
-                if (rawMinor >= 0) {
-                    // 2) Interpreta como int16 con signo (CO2 positivo no cambia; Tª −12 -> −12)
-                    int valor = (int) (short) rawMinor;
-
-                    log("iBeacon OK → minor(raw)=" + rawMinor + "  valor(int16)=" + valor);
-
-                    // 3) Guardar SOLO el valor (minor). La BBDD autoincrementa el id.
-                    logicaFake.guardarMedicion(valor);
-
-                    enviado = true;
-                    toast("Medición guardada: " + valor);
-                    detener();
-                } else {
-                    // No era iBeacon Apple; útil para depurar
-                    log("No iBeacon o formato inesperado. ADV(" + adv.length + ")=" + bytesToHex(adv));
+                int[] mm = extractMajorMinorFromIBeacon(adv);
+                if (mm[1] >= 0) {
+                    int minorPpb = mm[1] & 0xFFFF;   // *** CLAVE: interpretar como unsigned 16-bit
+                    ultimoMinorPpb = minorPpb;       // cache 0..65535
                 }
             }
-
             @Override public void onScanFailed(int errorCode) {
                 Log.e(TAG, "Scan failed: " + errorCode);
             }
@@ -129,10 +136,25 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
             escaner.startScan(filtros, settings, callback);
-            toast("Buscando \"" + NOMBRE_BEACON + "\"…");
+            escaneando = true;  // seguimos escaneando hasta pulsar "Detener"
+            toast("Escaneando \"" + NOMBRE_BEACON + "\"… (se detiene con el botón)");
         } else {
             pedirPermisos();
         }
+    }
+
+    // ---------- MEDIR O3: lee el último valor cacheado (no toca el escaneo) ----------
+    private void mostrarLecturaO3() {
+        if (ultimoMinorPpb == null) {
+            toast("Aún sin dato de O₃. Pulsa Conectar o espera un momento…");
+            return;
+        }
+        double ppm = ultimoMinorPpb / 1000.0;
+        if (txtO3 != null) {
+            txtO3.setText(String.format(java.util.Locale.US, "O₃: %.3f ppm", ppm));
+        }
+        log("O3 → minor(ppb)=" + ultimoMinorPpb + "  ppm=" + ppm);
+        toast(String.format(java.util.Locale.US, "Medición O₃: %.3f ppm", ppm));
     }
 
     // ---------- Escaneo general (depuración opcional) ----------
@@ -140,16 +162,21 @@ public class MainActivity extends AppCompatActivity {
         log("Escaneo general: empieza");
         if (!precondicionesOk()) return;
 
+        if (escaneando) {
+            toast("Ya hay un escaneo activo (Detén antes si quieres el general).");
+            return;
+        }
+
         callback = new ScanCallback() {
             @Override public void onScanResult(int callbackType, ScanResult r) {
                 if (r == null || r.getScanRecord() == null) return;
                 byte[] adv = r.getScanRecord().getBytes();
                 if (adv == null) return;
 
-                int rawMinor = extractMinorFromIBeacon(adv);
-                if (rawMinor >= 0) {
-                    int valor = (int) (short) rawMinor;
-                    Log.d(TAG, "iBeacon → minor(raw)=" + rawMinor + " valor(int16)=" + valor);
+                int[] mm = extractMajorMinorFromIBeacon(adv);
+                if (mm[1] >= 0) {
+                    int minor = mm[1] & 0xFFFF; // *** también sin signo en logs
+                    Log.d(TAG, "iBeacon → major=" + mm[0] + " minor=" + minor);
                 }
             }
         };
@@ -161,6 +188,7 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
             escaner.startScan(null, settings, callback);
+            escaneando = true;
             toast("Escaneo BLE iniciado (general)");
         } else {
             pedirPermisos();
@@ -168,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void detener() {
-        if (callback == null || escaner == null) { toast("Escaneo detenido"); return; }
+        if (callback == null || escaner == null) { toast("Escaneo detenido"); escaneando = false; return; }
         try {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
                     ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
@@ -176,44 +204,45 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
         callback = null;
+        escaneando = false;
         toast("Escaneo detenido");
     }
 
-    // ---------- Parseo robusto: MINOR (big-endian) desde Manufacturer Data (0xFF) ----------
-    // iBeacon Apple = 4C 00 02 15 + UUID(16) + Major(2) + Minor(2) + TxPower(1)
-    private static int extractMinorFromIBeacon(byte[] adv) {
-        if (adv == null || adv.length < 30) return -1;
+    // ---------- Parseo iBeacon: devuelve {major, minor} o {-1,-1} ----------
+    private static int[] extractMajorMinorFromIBeacon(byte[] adv) {
+        if (adv == null || adv.length < 30) return new int[]{-1,-1};
 
         int i = 0;
         while (i < adv.length) {
             int len = adv[i] & 0xFF;
-            if (len == 0) break;          // fin de estructuras
+            if (len == 0) break;
             int typeIdx = i + 1;
             int dataIdx = i + 2;
             if (typeIdx >= adv.length) break;
             int type = adv[typeIdx] & 0xFF;
 
-            if (type == 0xFF) { // Manufacturer Specific Data
-                int structEnd = i + 1 + len; // exclusivo
-                int base = dataIdx;          // datos (empieza company ID)
-
-                if (base + 4 <= structEnd) {
+            if (type == 0xFF) { // Manufacturer Data
+                int structEnd = i + 1 + len;
+                if (dataIdx + 4 <= structEnd) {
                     boolean isAppleIBeacon =
-                            (adv[base]     == (byte)0x4C) &&
-                                    (adv[base + 1] == (byte)0x00) &&
-                                    (adv[base + 2] == (byte)0x02) &&
-                                    (adv[base + 3] == (byte)0x15);
+                            (adv[dataIdx]     == (byte)0x4C) &&
+                                    (adv[dataIdx + 1] == (byte)0x00) &&
+                                    (adv[dataIdx + 2] == (byte)0x02) &&
+                                    (adv[dataIdx + 3] == (byte)0x15);
                     if (isAppleIBeacon) {
-                        int minorIdx = base + 4 + 16 + 2; // 4 cabecera + 16 UUID + 2 Major
+                        int majorIdx = dataIdx + 4 + 16;  // 4 hdr + 16 UUID
+                        int minorIdx = majorIdx + 2;
                         if (minorIdx + 1 < structEnd) {
-                            return ((adv[minorIdx] & 0xFF) << 8) | (adv[minorIdx + 1] & 0xFF); // BIG-ENDIAN
+                            int major = ((adv[majorIdx] & 0xFF) << 8) | (adv[majorIdx+1] & 0xFF);
+                            int minor = ((adv[minorIdx] & 0xFF) << 8) | (adv[minorIdx+1] & 0xFF);
+                            return new int[]{major, minor};
                         }
                     }
                 }
             }
-            i += (1 + len); // siguiente AD structure
+            i += (1 + len);
         }
-        return -1;
+        return new int[]{-1,-1};
     }
 
     // ---------- Helpers ----------
@@ -246,7 +275,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Este check evita errores si falta algo esencial antes de escanear.
     private boolean precondicionesOk() {
         BluetoothAdapter bta = BluetoothAdapter.getDefaultAdapter();
         if (bta == null) { toast("Sin Bluetooth"); return false; }
