@@ -1,5 +1,5 @@
 // -*- mode: c++ -*-
-
+//
 // ----------------------------------------------------------
 // Jordi Bataller i Mascarell
 // 2019-07-07
@@ -19,6 +19,13 @@
 // ----------------------------------------------------------
 // ----------------------------------------------------------
 #include "ServicioEnEmisora.h"
+
+// ================== NUEVO (BEGIN) ==================
+// Valor típico de "Measured Power" iBeacon (~ -59 dBm)
+#ifndef IBEACON_MEASURED_POWER_DEFAULT
+#define IBEACON_MEASURED_POWER_DEFAULT 0xC5
+#endif
+// ================== NUEVO (END) ====================
 
 // ----------------------------------------------------------
 // ----------------------------------------------------------
@@ -153,6 +160,40 @@ public:
 	Bluefruit.Advertising.start( 0 ); 
 	
   } // ()
+
+  // ================== NUEVO (BEGIN) ==================
+  // Overload práctico: usa un "Measured Power" por defecto (0xC5)
+  void emitirAnuncioIBeacon( uint8_t * beaconUUID, int16_t major, int16_t minor ) {
+    emitirAnuncioIBeacon( beaconUUID, major, minor, IBEACON_MEASURED_POWER_DEFAULT );
+  }
+
+  // Helper para cambiar el nombre publicitado solo para este anuncio (sin reinstanciar)
+  // Útil si quieres asegurar "Grupo4" aunque el objeto se construyera con otro nombre.
+  void emitirAnuncioIBeaconConNombre( const char * nombre, uint8_t * beaconUUID, int16_t major, int16_t minor, uint8_t rssi = IBEACON_MEASURED_POWER_DEFAULT ) {
+    (*this).detenerAnuncio();
+    Bluefruit.Advertising.clearData();
+    Bluefruit.ScanResponse.clearData();
+
+    BLEBeacon elBeacon( beaconUUID, major, minor, rssi );
+    elBeacon.setManufacturer( (*this).fabricanteID );
+
+    Bluefruit.setTxPower( (*this).txPower );
+    Bluefruit.setName( nombre );                // << establece el nombre ad hoc
+    Bluefruit.ScanResponse.addName();
+
+    Bluefruit.Advertising.setBeacon( elBeacon );
+    Bluefruit.Advertising.restartOnDisconnect(true);
+    Bluefruit.Advertising.setInterval(100, 100);
+    Bluefruit.Advertising.start(0);
+  }
+
+  // ********** O3 (AYUDA) **********
+  // Para O₃ enviamos: MAJOR = contador ; MINOR = O3 en ppb.
+  // Esta función solo hace el mapeo y llama a la emisión estándar.
+  void emitirAnuncioIBeacon_O3_ppbEnMinor( uint8_t * beaconUUID, uint16_t o3_ppb, uint16_t contador_major, uint8_t rssi = IBEACON_MEASURED_POWER_DEFAULT ) {
+    emitirAnuncioIBeacon( beaconUUID, (int16_t)contador_major, (int16_t)o3_ppb, rssi );
+  }
+  // ================== NUEVO (END) ====================
 
   // .........................................................
   //
@@ -349,4 +390,3 @@ public:
 // ----------------------------------------------------------
 // ----------------------------------------------------------
 // ----------------------------------------------------------
-

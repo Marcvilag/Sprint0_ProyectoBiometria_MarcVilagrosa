@@ -11,23 +11,41 @@
 
     <Button
         android:id="@+id/botonBuscarDispositivosBTLE"
-        android:text="Buscar Dispositivos BTLE nou 4"
+        android:text="Buscar Dispositivos BTLE (general)"
         android:onClick="botonBuscarDispositivosBTLEPulsado"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
     <Button
         android:id="@+id/botonDetenerBusquedaDispositivosBTLE"
-        android:text="Detener búsqueda Dispositivos BTLE"
+        android:text="Detener búsqueda"
         android:onClick="botonDetenerBusquedaDispositivosBTLEPulsado"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
+    <!-- CONECTAR (detectar por nombre) -->
     <Button
         android:id="@+id/botonBuscarNuestroDispositivoBTLE"
-        android:text="Buscar nuestro dispositivo BTLE"
+        android:text="Conectar (detectar &quot;Grupo4&quot;)"
         android:onClick="botonBuscarNuestroDispositivoBTLEPulsado"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
+
+    <!-- MEDIR O₃ (one-shot) -->
+    <Button
+        android:id="@+id/btnMedirO3"
+        android:text="Medir O₃"
+        android:onClick="botonMedirO3Pulsado"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- Mostrar O₃ -->
+    <TextView
+        android:id="@+id/textO3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="O₃: — ppm"
+        android:textSize="20sp"
+        android:padding="8dp" />
 
 </android.widget.LinearLayout>
